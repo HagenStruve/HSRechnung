@@ -1,0 +1,22 @@
+{
+  "name": "HSRechnung",
+  "short_name": "HSRechnung",
+  "description": "Lokale Rechnungsapp fuer kleine Unternehmen",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/brand/hsrechnung-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32 48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

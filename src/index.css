@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.invoice-app-shell,
+.invoice-form-column,
+.invoice-preview-column {
+  box-sizing: border-box;
+}
+
+.invoice-app-shell *,
+.invoice-form-column *,
+.invoice-preview-column * {
+  min-width: 0;
+}
+
+.invoice-form-column,
+.invoice-preview-column {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.invoice-form-column input,
+.invoice-form-column select,
+.invoice-form-column textarea,
+.invoice-form-column button {
+  max-width: 100%;
+}
+
+.invoice-form-column select {
+  width: 100%;
+}
+
+.invoice-form-column button {
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 1700px) {
+  .invoice-form-column {
+    min-width: 0;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .invoice-preview-column {
+    position: fixed;
+    right: 24px;
+    top: 24px;
+    bottom: 24px;
+    z-index: 20;
+    width: min(620px, calc(100vw - 1080px));
+    max-width: 620px;
+    height: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 32px;
+  }
+}

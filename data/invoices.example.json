@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "savedAt": null,
+  "invoice": null,
+  "invoiceSettings": {
+    "nextInvoiceNumber": "RE-00001"
+  },
+  "invoices": [],
+  "customers": [],
+  "services": [],
+  "serviceHours": {},
+  "companySettings": null,
+  "companyProfiles": []
+}

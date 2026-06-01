@@ -1,0 +1,15 @@
+node_modules/
+dist/
+data/invoices.json
+data/*.json
+!data/invoices.example.json
+data/invoices.json.bak
+data/invoices.json.tmp
+data/logos/
+data/pdfs/
+*.log
+*.pdf
+*.db
+*.sqlite
+.env
+.env.local

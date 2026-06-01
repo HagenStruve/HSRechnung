@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" role="img" aria-labelledby="title desc">
+  <title id="title">HSRechnung Logo</title>
+  <desc id="desc">Minimalistisches HS-Monogramm mit stilisiertem Rechnungsdokument</desc>
+  <rect width="320" height="96" rx="18" fill="#f8fafc"/>
+  <g transform="translate(22 12)">
+    <rect width="72" height="72" rx="16" fill="#0f172a"/>
+    <path d="M24 13h26l14 14v32a7 7 0 0 1-7 7H24a7 7 0 0 1-7-7V20a7 7 0 0 1 7-7z" fill="#ffffff"/>
+    <path d="M50 13v14h14" fill="#cbd5e1"/>
+    <path d="M28 43h29M28 53h21" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
+    <text x="26" y="35" fill="#0f172a" font-family="Arial, sans-serif" font-size="20" font-weight="800" letter-spacing="-1">HS</text>
+  </g>
+  <g font-family="Arial, sans-serif">
+    <text x="112" y="45" fill="#0f172a" font-size="31" font-weight="800">HSRechnung</text>
+    <text x="113" y="67" fill="#475569" font-size="14" font-weight="600">lokal · klar · professionell</text>
+  </g>
+</svg>
