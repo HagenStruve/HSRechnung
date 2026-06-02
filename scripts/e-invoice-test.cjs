@@ -7,6 +7,11 @@ const {
   generateFacturXCiiXml,
   validateEInvoiceData,
 } = require("../lib/e-invoice.cjs");
+const {
+  createFacturXPdf,
+  getMustangAvailability,
+  hasEmbeddedFacturXXml,
+} = require("../lib/facturx-pdf.cjs");
 
 function createSampleInvoice(overrides = {}) {
   return {
@@ -67,6 +72,29 @@ async function main() {
     assert.ok(result.fileName.endsWith(".xml"));
     const xml = await fs.readFile(result.filePath, "utf8");
     assert.match(xml, /Baggerarbeiten/);
+    assert.match(xml, /urn:cen\.eu:en16931:2017/);
+
+    const fakeEmbeddedPdf = path.join(tempDir, "fake-factur-x.pdf");
+    await fs.writeFile(fakeEmbeddedPdf, "%PDF-1.7\n/Names <</EmbeddedFiles [(factur-x.xml)]>>\n%%EOF", "latin1");
+    assert.equal(await hasEmbeddedFacturXXml(fakeEmbeddedPdf), true);
+
+    const availability = await getMustangAvailability(path.resolve(__dirname, ".."));
+    if (!availability.available) {
+      console.log(`SKIP Factur-X-PDF-Erzeugung: ${availability.reason}`);
+      return;
+    }
+
+    const sourcePdf = path.join(tempDir, "source.pdf");
+    await fs.writeFile(sourcePdf, "%PDF-1.7\n%%EOF", "latin1");
+    const facturXPdf = await createFacturXPdf({
+      invoice,
+      sourcePdfPath: sourcePdf,
+      xmlPath: result.filePath,
+      outputDir: tempDir,
+      baseDir: path.resolve(__dirname, ".."),
+    });
+    assert.equal(facturXPdf.success, true, facturXPdf.reason || facturXPdf.errorOutput || "Factur-X-PDF wurde nicht erzeugt");
+    assert.equal(facturXPdf.embeddedXml, true);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }

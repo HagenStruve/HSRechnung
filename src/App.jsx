@@ -1785,7 +1785,13 @@ export default function HSRechnung() {
       }
 
       setLastPdfPath(result.filePath);
-      if (result.eInvoice?.success) {
+      if (result.facturXPdf?.success) {
+        showSaveMessage(`PDF gespeichert: ${result.filePath} | Factur-X-PDF: ${result.facturXPdf.filePath}`);
+      } else if (result.facturXPdf?.skipped) {
+        showSaveMessage(`PDF und XML gespeichert. Factur-X-PDF fehlt: ${result.facturXPdf.reason}`);
+      } else if (result.facturXPdf?.reason) {
+        showSaveMessage(`PDF und XML gespeichert. Factur-X-PDF nicht valide: ${result.facturXPdf.reason}`);
+      } else if (result.eInvoice?.success) {
         showSaveMessage(`PDF gespeichert: ${result.filePath} | E-Rechnung XML: ${result.eInvoice.filePath}`);
       } else if (Array.isArray(result.eInvoice?.missingFields) && result.eInvoice.missingFields.length) {
         showSaveMessage(`PDF gespeichert. E-Rechnung XML fehlt: ${result.eInvoice.missingFields.join(", ")}`);

@@ -1,51 +1,148 @@
 # Technische Notizen: E-Rechnung
 
-## Aenderungen
+## Aktueller Stand
 
-- Die bestehende PDF-Erzeugung bleibt unveraendert: `server.cjs` baut weiter HTML und erzeugt daraus per lokalem Edge/Chrome eine PDF in `data/pdfs/`.
-- Beim lokalen PDF-Speichern wird zusaetzlich ein E-Rechnungs-XML-Sidecar in `data/e-invoices/` erzeugt.
-- Die E-Rechnungslogik liegt getrennt in `lib/e-invoice.cjs`:
-  - Normalisierung der Rechnungsdaten
-  - Pflichtfeldvalidierung
-  - Summenberechnung
-  - Factur-X/CrossIndustryInvoice-XML-Erzeugung
-- Im bestehenden Firmendatenbereich wurde minimal das Feld `Steuerart` ergaenzt. Es nutzt den vorhandenen Stil und veraendert den Workflow nicht.
+- Die bestehende PDF-Erzeugung bleibt erhalten: `server.cjs` erzeugt weiter die bisherige PDF in `data/pdfs/`.
+- Zusaetzlich erzeugt die App eine Factur-X/ZUGFeRD-XML-Datei in `data/e-invoices/`.
+- Wenn Mustang CLI lokal verfuegbar ist, erzeugt die App eine finale Hybrid-PDF:
 
-## Format
+```text
+data/e-invoices/Rechnung_RE-xxxxx_factur-x.pdf
+```
 
-Erzeugt wird eine XML-Datei im Stil von Factur-X/ZUGFeRD auf Basis von CrossIndustryInvoice und EN16931-Datenfeldern. Die Datei heisst im Standardkontext `factur-x.xml`, wird lokal aber mit rechnungsspezifischem Dateinamen als Sidecar abgelegt.
+- Diese finale PDF enthaelt `factur-x.xml` als eingebettete Datei.
+- Die App meldet die finale Factur-X-PDF nur als erfolgreich, wenn Mustang-Validierung bestanden wurde.
 
-Aktuell werden unter anderem abgebildet:
+## Architektur
 
-- Rechnungsaussteller und Rechnungsempfaenger
-- Rechnungsnummer, Rechnungsdatum und Faelligkeit
-- Leistungsdatum je Position
-- Positionen mit Beschreibung, Menge, Einheit, Einzelpreis, Steuersatz und Nettobetrag
-- Netto-, Steuer- und Bruttosummen
-- Zahlungsdaten mit IBAN und optional BIC
-- Steuerarten: Regelsteuer, ermaessigt, 0 %, Kleinunternehmer, steuerfrei, vorbereitet fuer Landwirtschaft Paragraph 24
+- `lib/e-invoice.cjs`
+  - normalisiert Rechnungsdaten
+  - validiert Pflichtfelder
+  - erzeugt CrossIndustryInvoice-XML fuer EN16931
+- `lib/facturx-pdf.cjs`
+  - findet Mustang CLI ueber `MUSTANG_CLI_JAR`, `MUSTANG_JAR` oder `tools/Mustang-CLI-*.jar`
+  - erzeugt/kombiniert PDF und XML per Mustang
+  - prueft, ob `factur-x.xml` eingebettet ist
+  - startet Mustang-Validierung
+- `scripts/e-invoice-validate.cjs`
+  - prueft eine Factur-X-PDF auf eingebettete `factur-x.xml`
+  - fuehrt Mustang-Validierung aus, wenn Mustang verfuegbar ist
+- `scripts/e-invoice-sample.cjs`
+  - erzeugt eine Beispielrechnung fuer lokale Tests
 
-## Bibliothek
+Die UI bleibt unveraendert bis auf das bereits vorhandene kleine Feld `Steuerart` in den Firmendaten.
 
-Es wurde bewusst keine neue npm-Abhaengigkeit eingebaut. Fuer Node.js gibt es keine breit etablierte, leichtgewichtige Bibliothek, die in diesem Stack zuverlaessig PDF/A-3-Konvertierung plus Factur-X-Embedding und Validierung abdeckt.
+## Lokale Einrichtung
 
-Die aktuelle Architektur haelt die Generatorlogik vendor-neutral. Fuer eine produktive Validierung oder PDF/A-3-Einbettung kann spaeter ein externer lokaler Prozess angeschlossen werden, zum Beispiel Mustangproject als CLI/Service. Das passt besser fuer MaschinenLog, weil Mustangproject bereits auf ZUGFeRD/Factur-X spezialisiert ist und lokal ohne Cloud-Verarbeitung betrieben werden kann.
+Java muss im PATH liegen:
 
-## Noch offen fuer vollstaendige Validitaet
+```bash
+java -version
+```
 
-- Die XML-Datei ist vorbereitet, aber noch nicht extern gegen EN16931/ZUGFeRD validiert.
-- Die PDF ist weiterhin eine normale Browser-PDF, noch kein PDF/A-3.
-- Das XML wird noch nicht in die PDF eingebettet.
-- Die aktuelle App nutzt einen globalen Steuersatz pro Rechnung. Das XML schreibt diesen je Position aus. Gemischte Rechnungen mit mehreren Steuersaetzen pro Position sollten vor produktiver Nutzung im Datenmodell erweitert werden.
-- Fuer steuerfreie Sonderfaelle koennen je nach Geschaeftsfall weitere Codes/Begruendungen notwendig sein.
+Mustang CLI wird nicht als npm-Abhaengigkeit installiert. Empfohlen ist die lokale JAR:
+
+```text
+tools/Mustang-CLI-2.23.1.jar
+```
+
+Downloadquelle:
+
+```text
+https://repo1.maven.org/maven2/org/mustangproject/Mustang-CLI/2.23.1/Mustang-CLI-2.23.1.jar
+```
+
+Alternativ:
+
+```bash
+MUSTANG_CLI_JAR=C:\pfad\zu\Mustang-CLI-2.23.1.jar
+```
+
+JAR-Dateien unter `tools/` sind per `.gitignore` ausgeschlossen.
+
+## Erzeugung
+
+Beim Button `PDF lokal speichern` passiert serverseitig:
+
+1. Bestehende Browser-PDF nach `data/pdfs/` schreiben.
+2. Factur-X/CII-XML nach `data/e-invoices/` schreiben.
+3. Mit Mustang versuchen, die vorhandene PDF mit `factur-x.xml` zu kombinieren.
+4. Wenn die vorhandene Browser-PDF nicht als PDF/A-Quelle geeignet ist, erzeugt Mustang eine PDF/A-3u-Ausgabe aus XML und kombiniert diese.
+5. Mustang validiert die finale `_factur-x.pdf`.
+
+Der originale PDF-Export bleibt dadurch erhalten. Die finale E-Rechnung liegt separat in `data/e-invoices/`.
+
+## Pruefen
+
+Beispielrechnung erzeugen:
+
+```bash
+npm run sample:e-invoice
+```
+
+Neueste Factur-X-PDF pruefen:
+
+```bash
+npm run validate:e-invoice
+```
+
+Bestimmte Datei pruefen:
+
+```bash
+node scripts/e-invoice-validate.cjs data/e-invoices/Rechnung_RE-2026-SAMPLE_factur-x.pdf
+```
+
+Das Script gibt aus:
+
+- ob `factur-x.xml` eingebettet ist
+- ob Mustang-Validierung verfuegbar ist
+- ob Mustang die PDF als `valid` bewertet
+
+Wenn Mustang fehlt, wird die Mustang-Validierung klar als uebersprungen gemeldet. Dann darf die Datei nicht als validierte E-Rechnung behauptet werden.
+
+## Validierung in dieser Arbeitsumgebung
+
+In dieser Umgebung wurde Mustang CLI 2.23.1 lokal unter `tools/Mustang-CLI-2.23.1.jar` bereitgestellt.
+
+Ausgefuehrt:
+
+```bash
+npm test
+npm run sample:e-invoice
+npm run validate:e-invoice
+```
+
+Ergebnis des Validierungsscripts fuer die Beispielrechnung:
+
+```text
+factur-x.xml eingebettet: ja
+Mustang-Validierung: valid
+```
+
+## Steuerlogik und Grenzen
+
+Unterstuetzt und im Modell abgebildet:
+
+- Regelsteuer
+- ermaessigt
+- 0 %
+- Kleinunternehmer
+- steuerfrei
+- vorbereitet fuer Landwirtschaft Paragraph 24
+
+Aktuelle Grenze:
+
+- Die App nutzt weiterhin einen globalen Steuersatz pro Rechnung. Das XML schreibt den Satz je Position aus. Fuer gemischte Rechnungen mit mehreren Steuersaetzen sollte das Datenmodell spaeter um Positions-Steuerarten erweitert werden.
+- Steuerfreie Sonderfaelle koennen je nach Geschaeftsfall spezifischere VATEX-Codes benoetigen.
+- Wenn die vorhandene Browser-PDF nicht PDF/A-tauglich kombinierbar ist, verwendet der Adapter eine von Mustang erzeugte PDF/A-3u-Visualisierung als finale Factur-X-PDF. Die bisherige PDF bleibt unveraendert separat erhalten.
 
 ## Uebernahme nach MaschinenLog
 
 Die uebertragbaren Teile sind:
 
 - `lib/e-invoice.cjs` als fachliche Generator- und Validierungsschicht
-- die Pflichtfeldvalidierung vor dem Export
-- der Sidecar-Export als Zwischenstufe
-- spaeter ein Adapter, der statt Sidecar eine Mustangproject-CLI oder einen lokalen Service aufruft
+- `lib/facturx-pdf.cjs` als Mustang-Adapter
+- Pflichtfeldvalidierung vor dem Export
+- Validierungsscript als CI- oder Support-Werkzeug
 
-Wichtig ist, das Rechnungsmodell in MaschinenLog getrennt von UI-Komponenten zu halten und steuerliche Sonderfaelle nicht hart zu verdrahten. Die Generatorfunktionen nehmen reine Rechnungsdaten entgegen und schreiben keine Rechnungsdaten in Logs.
+Die Generatorfunktionen nehmen reine Rechnungsdaten entgegen und schreiben keine Rechnungsdaten in Logs. Mustang wird lokal ausgefuehrt; es findet keine Cloud-Verarbeitung statt.

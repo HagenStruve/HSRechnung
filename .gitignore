@@ -7,6 +7,8 @@ data/invoices.json.bak
 data/invoices.json.tmp
 data/logos/
 data/pdfs/
+data/e-invoices/
+tools/*.jar
 *.log
 *.pdf
 *.db

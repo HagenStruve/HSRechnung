@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { createEInvoiceXmlFile } = require("./lib/e-invoice.cjs");
+const { createFacturXPdf } = require("./lib/facturx-pdf.cjs");
 
 const PORT = Number(process.env.INVOICE_API_PORT || 5174);
 const DATA_DIR = path.join(__dirname, "data");
@@ -518,6 +519,15 @@ async function createInvoicePdf(invoice) {
 
   await ensureEInvoiceDir();
   const eInvoice = await createEInvoiceXmlFile(invoice, E_INVOICE_DIR);
+  const facturXPdf = eInvoice.success
+    ? await createFacturXPdf({
+        invoice,
+        sourcePdfPath: filePath,
+        xmlPath: eInvoice.filePath,
+        outputDir: E_INVOICE_DIR,
+        baseDir: __dirname,
+      })
+    : null;
 
   return {
     success: true,
@@ -527,6 +537,12 @@ async function createInvoicePdf(invoice) {
       ...eInvoice,
       filePath: eInvoice.filePath ? path.relative(__dirname, eInvoice.filePath).replaceAll("\\", "/") : null,
     },
+    facturXPdf: facturXPdf
+      ? {
+          ...facturXPdf,
+          filePath: facturXPdf.filePath ? path.relative(__dirname, facturXPdf.filePath).replaceAll("\\", "/") : null,
+        }
+      : null,
   };
 }
 
