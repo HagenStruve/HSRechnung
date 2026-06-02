@@ -58,6 +58,16 @@ data/invoices.json.bak
 
 IndexedDB im Browser bleibt als Fallback und als Migrationsquelle fuer alte lokale Daten erhalten. Reines Browser-JavaScript kann nicht sicher direkt in den Projektordner schreiben, deshalb startet `npm run dev` sowohl Vite als auch die lokale Speicher-API.
 
+## E-Rechnung
+
+Beim lokalen Speichern einer PDF wird zusaetzlich eine Factur-X/ZUGFeRD-vorbereitete XML-Datei erzeugt:
+
+```text
+data/e-invoices/
+```
+
+Die PDF-Erzeugung selbst bleibt unveraendert. Das XML ist aktuell ein Sidecar und noch nicht als PDF/A-3-Anhang eingebettet. Details und offene Punkte stehen in `TECHNICAL_NOTES.md`.
+
 ## Backup
 
 Fuer ein Backup den Ordner `data/` kopieren, insbesondere:

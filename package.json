@@ -8,6 +8,7 @@
     "start": "node scripts/dev-server.cjs",
     "vite": "vite",
     "api": "node server.cjs",
+    "test": "node scripts/e-invoice-test.cjs",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --open"
   },

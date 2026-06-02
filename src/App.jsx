@@ -39,6 +39,14 @@ const PRICE_MODES = {
   net: "Preis ist Netto",
   gross: "Preis ist Brutto",
 };
+const TAX_CATEGORIES = {
+  standard: "Regelsteuer",
+  reduced: "Ermaessigt",
+  zero: "0 %",
+  smallBusiness: "Kleinunternehmer",
+  taxExempt: "Steuerfrei",
+  agriculture24: "Landwirtschaft Paragraph 24",
+};
 const INVOICE_STATUSES = {
   draft: "Entwurf",
   created: "Erstellt",
@@ -110,6 +118,7 @@ const createDefaultCompanySettings = () => ({
   logoPath: "",
   logoFileName: "",
   vatRate: 19,
+  taxCategory: "standard",
   bankName: "",
   iban: "",
   bic: "",
@@ -126,6 +135,7 @@ const createDefaultCompanySettings = () => ({
   companyLogoPath: "",
   companyLogoFileName: "",
   taxRate: 19,
+  companyTaxCategory: "standard",
 });
 
 function getCompanyInvoiceNumber(companySettings) {
@@ -151,6 +161,7 @@ const applyCompanySettingsToInvoice = (invoice, companySettings, options = {}) =
   companyTaxNumber: companySettings.taxNumber,
   companyVatId: companySettings.vatId,
   companyInvoicePrefix: companySettings.invoicePrefix,
+  companyTaxCategory: companySettings.taxCategory || companySettings.companyTaxCategory || inferTaxCategory(companySettings.vatRate ?? companySettings.taxRate ?? 19),
   taxRate: Number(companySettings.vatRate ?? companySettings.taxRate ?? 19),
   invoiceNumber: options.generateInvoiceNumber ? getCompanyInvoiceNumber(companySettings) || invoice.invoiceNumber : invoice.invoiceNumber,
 });
@@ -170,6 +181,7 @@ const createDefaultInvoice = (companySettings = createDefaultCompanySettings(), 
   companyTaxNumber: companySettings.taxNumber,
   companyVatId: companySettings.vatId,
   companyInvoicePrefix: companySettings.invoicePrefix,
+  companyTaxCategory: companySettings.taxCategory || companySettings.companyTaxCategory || inferTaxCategory(companySettings.vatRate ?? companySettings.taxRate ?? 19),
   showCompanyBranding: true,
   customerId: "",
   customerName: "",
@@ -298,6 +310,17 @@ function firstFiniteNumber(fallback, ...values) {
   return value === undefined ? fallback : Number(value);
 }
 
+function inferTaxCategory(taxRate) {
+  const rate = Number(taxRate || 0);
+  if (rate === 7) return "reduced";
+  if (rate === 0) return "zero";
+  return "standard";
+}
+
+function normalizeTaxCategory(category, taxRate) {
+  return Object.prototype.hasOwnProperty.call(TAX_CATEGORIES, category) ? category : inferTaxCategory(taxRate);
+}
+
 function normalizeCompanyRecord(source = {}) {
   const address = firstString(source.address, source.companyAddress, source.firmAddress, source.businessAddress);
   const email = firstString(source.email, source.companyEmail, source.firmEmail, source.businessEmail);
@@ -306,6 +329,7 @@ function normalizeCompanyRecord(source = {}) {
   const logoPath = firstString(source.logoPath, source.companyLogoPath, source.logo, source.logoUrl);
   const logoFileName = firstString(source.logoFileName, source.companyLogoFileName, source.logoFilename, source.logoName);
   const vatRate = firstFiniteNumber(19, source.vatRate, source.taxRate);
+  const taxCategory = normalizeTaxCategory(firstString(source.taxCategory, source.companyTaxCategory), vatRate);
   const nextInvoiceNumber = Math.max(1, Math.trunc(firstFiniteNumber(1, source.nextInvoiceNumber)));
   const invoicePrefix = firstString(source.invoicePrefix, source.prefix).trim() || "RE";
 
@@ -319,6 +343,7 @@ function normalizeCompanyRecord(source = {}) {
     logoPath,
     logoFileName,
     vatRate,
+    taxCategory,
     bankName: firstString(source.bankName, source.bank),
     iban: firstString(source.iban, source.IBAN),
     bic: firstString(source.bic, source.BIC),
@@ -335,6 +360,7 @@ function normalizeCompanyRecord(source = {}) {
     companyLogoPath: logoPath,
     companyLogoFileName: logoFileName,
     taxRate: vatRate,
+    companyTaxCategory: taxCategory,
   };
 }
 
@@ -1141,6 +1167,10 @@ export default function HSRechnung() {
   const updateCompanyField = (field, value) => {
     setCompanyForm((prev) => {
       const next = { ...prev, [field]: value };
+      if (field === "vatRate" && ["standard", "reduced", "zero"].includes(prev.taxCategory || prev.companyTaxCategory)) {
+        next.taxCategory = inferTaxCategory(value);
+        next.companyTaxCategory = next.taxCategory;
+      }
       if (editingCompanyId && next.id && next.id === companySettings.id) {
         setCompanySettings(next);
         setInvoice((prevInvoice) => applyCompanySettingsToInvoice(prevInvoice, next));
@@ -1166,6 +1196,7 @@ export default function HSRechnung() {
       logoPath: companyForm.logoPath || companyForm.companyLogoPath,
       logoFileName: companyForm.logoFileName || companyForm.companyLogoFileName,
       vatRate: Number(companyForm.vatRate ?? companyForm.taxRate ?? 19),
+      taxCategory: normalizeTaxCategory(companyForm.taxCategory || companyForm.companyTaxCategory, companyForm.vatRate ?? companyForm.taxRate ?? 19),
       bankName: String(companyForm.bankName || "").trim(),
       iban: String(companyForm.iban || "").trim(),
       bic: String(companyForm.bic || "").trim(),
@@ -1754,7 +1785,13 @@ export default function HSRechnung() {
       }
 
       setLastPdfPath(result.filePath);
-      showSaveMessage(`PDF gespeichert: ${result.filePath}`);
+      if (result.eInvoice?.success) {
+        showSaveMessage(`PDF gespeichert: ${result.filePath} | E-Rechnung XML: ${result.eInvoice.filePath}`);
+      } else if (Array.isArray(result.eInvoice?.missingFields) && result.eInvoice.missingFields.length) {
+        showSaveMessage(`PDF gespeichert. E-Rechnung XML fehlt: ${result.eInvoice.missingFields.join(", ")}`);
+      } else {
+        showSaveMessage(`PDF gespeichert: ${result.filePath}`);
+      }
     } catch (error) {
       console.error("PDF konnte nicht lokal gespeichert werden.", error);
       showSaveMessage(error.message || "PDF konnte nicht lokal gespeichert werden.");
@@ -2161,6 +2198,11 @@ export default function HSRechnung() {
                 <Field label="E-Mail"><Input placeholder="name@example.de" value={companyForm.companyEmail} onChange={(e) => updateCompanyField("companyEmail", e.target.value)} /></Field>
                 <Field label="Telefon"><Input placeholder="+49 ..." value={companyForm.companyPhone} onChange={(e) => updateCompanyField("companyPhone", e.target.value)} /></Field>
                 <Field label="MwSt. (%)"><Input type="number" min="0" step="0.1" value={companyForm.vatRate ?? companyForm.taxRate} onChange={(e) => updateCompanyField("vatRate", e.target.value)} /></Field>
+                <Field label="Steuerart">
+                  <select className="h-10 rounded-md border bg-white px-3 text-sm" value={companyForm.taxCategory || companyForm.companyTaxCategory || inferTaxCategory(companyForm.vatRate ?? companyForm.taxRate)} onChange={(e) => updateCompanyField("taxCategory", e.target.value)}>
+                    {Object.entries(TAX_CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
                 <Field label="Webseite"><Input type="url" placeholder="https://meinefirma.de" value={companyForm.companyWebsite} onChange={(e) => updateCompanyField("companyWebsite", e.target.value)} /></Field>
                 <Field label="Bank"><Input value={companyForm.bankName || ""} onChange={(e) => updateCompanyField("bankName", e.target.value)} /></Field>
                 <Field label="IBAN"><Input value={companyForm.iban || ""} onChange={(e) => updateCompanyField("iban", e.target.value)} /></Field>
