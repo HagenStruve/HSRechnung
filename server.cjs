@@ -492,6 +492,31 @@ function execFileAsync(file, args, options = {}) {
   });
 }
 
+async function printHtmlToPdf(browserPath, htmlPath, pdfPath, profileDir) {
+  const args = [
+    "--headless",
+    "--disable-gpu",
+    "--disable-gpu-sandbox",
+    "--disable-gpu-compositing",
+    "--disable-software-rasterizer",
+    "--disable-features=UseSkiaRenderer,VizDisplayCompositor",
+    "--run-all-compositor-stages-before-draw",
+    "--no-first-run",
+    "--no-default-browser-check",
+    `--user-data-dir=${profileDir}`,
+    `--print-to-pdf=${pdfPath}`,
+    "--print-to-pdf-no-header",
+    pathToFileURL(htmlPath).href,
+  ];
+
+  try {
+    await execFileAsync(browserPath, args, { timeout: 60000, windowsHide: true });
+  } catch (error) {
+    const stat = await fs.stat(pdfPath).catch(() => null);
+    if (!stat?.size) throw error;
+  }
+}
+
 async function createInvoicePdf(invoice) {
   if (!invoice || typeof invoice !== "object") throw new Error("Keine Rechnung übergeben.");
   const browserPath = await findBrowserExecutable();
@@ -506,20 +531,7 @@ async function createInvoicePdf(invoice) {
   await fs.mkdir(profileDir, { recursive: true });
 
   try {
-    await execFileAsync(
-      browserPath,
-      [
-        "--headless",
-        "--disable-gpu",
-        "--no-first-run",
-        "--no-default-browser-check",
-        `--user-data-dir=${profileDir}`,
-        `--print-to-pdf=${filePath}`,
-        "--print-to-pdf-no-header",
-        pathToFileURL(htmlPath).href,
-      ],
-      { timeout: 60000, windowsHide: true }
-    );
+    await printHtmlToPdf(browserPath, htmlPath, filePath, profileDir);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
@@ -572,20 +584,7 @@ async function createFinalInvoicePdf(invoice) {
   await fs.mkdir(profileDir, { recursive: true });
 
   try {
-    await execFileAsync(
-      browserPath,
-      [
-        "--headless",
-        "--disable-gpu",
-        "--no-first-run",
-        "--no-default-browser-check",
-        `--user-data-dir=${profileDir}`,
-        `--print-to-pdf=${sourcePdfPath}`,
-        "--print-to-pdf-no-header",
-        pathToFileURL(htmlPath).href,
-      ],
-      { timeout: 60000, windowsHide: true }
-    );
+    await printHtmlToPdf(browserPath, htmlPath, sourcePdfPath, profileDir);
 
     const stat = await fs.stat(sourcePdfPath);
     if (!stat.size) throw new Error("PDF-Datei wurde nicht erstellt.");

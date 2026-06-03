@@ -1,7 +1,9 @@
 const fs = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
 const { createEInvoiceXmlFile } = require("../lib/e-invoice.cjs");
 const { createFacturXPdf } = require("../lib/facturx-pdf.cjs");
+const { createHsrechnungCarrierPdf } = require("./hsrechnung-carrier-pdf.cjs");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT_DIR, "data", "pdfs");
@@ -40,7 +42,7 @@ const sampleInvoice = {
 
 async function main() {
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  const tempDir = await fs.mkdtemp(path.join(require("node:os").tmpdir(), "e-invoice-sample-"));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "e-invoice-sample-"));
 
   const xml = await createEInvoiceXmlFile(sampleInvoice, tempDir);
   if (!xml.success) {
@@ -53,7 +55,7 @@ async function main() {
   try {
     const sourcePdfPath = path.join(tempDir, "sample-source.pdf");
     const outputFilePath = path.join(OUTPUT_DIR, "Rechnung_RE-2026-SAMPLE_Max-Mustermann-GmbH_2026-06-02.pdf");
-    await fs.writeFile(sourcePdfPath, "%PDF-1.7\n%%EOF", "latin1");
+    await createHsrechnungCarrierPdf(sampleInvoice, sourcePdfPath, tempDir);
 
     const pdf = await createFacturXPdf({
       invoice: sampleInvoice,

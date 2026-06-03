@@ -66,12 +66,13 @@ Beim lokalen Speichern einer PDF erzeugt die App die fertige Rechnung direkt als
 data/pdfs/Rechnung_RE-xxxxx_Kunde_Datum.pdf
 ```
 
-Diese Datei ist die Hauptdatei fuer Nutzer, Kunden und spaeter MaschinenLog. Sie wird nur als erfolgreich gemeldet, wenn Mustang sie erzeugt und validiert hat. Technische XML- und Quell-PDF-Zwischenprodukte werden temporaer erzeugt und nach erfolgreicher Erstellung geloescht.
+Diese Datei ist die Hauptdatei fuer Nutzer, Kunden und spaeter MaschinenLog. Sie nutzt das sichtbare HSRechnung-Layout der Rechnungsvorschau und enthaelt die E-Rechnungsdaten unsichtbar als eingebettete `factur-x.xml`. Der Export wird nur als erfolgreich gemeldet, wenn die finale PDF Mustang-valid ist. Technische XML- und Quell-PDF-Zwischenprodukte werden temporaer erzeugt und nach erfolgreicher Erstellung geloescht.
 
 Lokale Voraussetzung:
 
 ```text
 Java im PATH
+JDK/javac im PATH
 tools/Mustang-CLI-2.23.1.jar
 ```
 
@@ -87,6 +88,8 @@ Beispielrechnung erzeugen und pruefen:
 npm run sample:e-invoice
 npm run validate:e-invoice
 ```
+
+Das Validierungsscript prueft die zuletzt erzeugte finale Rechnung in `data/pdfs/` und gibt aus, ob `factur-x.xml` eingebettet ist, welche PDF/A-3-Variante erkannt wurde, ob das HSRechnung-Layout sichtbar ist und ob Mustang 0 Fehler meldet.
 
 Fuer valide EN16931-Rechnungen muessen im Firmenprofil mindestens diese Daten gepflegt sein:
 

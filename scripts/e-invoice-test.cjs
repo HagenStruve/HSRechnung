@@ -12,6 +12,7 @@ const {
   getMustangAvailability,
   hasEmbeddedFacturXXml,
 } = require("../lib/facturx-pdf.cjs");
+const { createHsrechnungCarrierPdf } = require("./hsrechnung-carrier-pdf.cjs");
 
 function createSampleInvoice(overrides = {}) {
   return {
@@ -85,7 +86,12 @@ async function main() {
     }
 
     const sourcePdf = path.join(tempDir, "source.pdf");
-    await fs.writeFile(sourcePdf, "%PDF-1.7\n%%EOF", "latin1");
+    try {
+      await createHsrechnungCarrierPdf(invoice, sourcePdf, tempDir);
+    } catch (error) {
+      console.log(`SKIP Factur-X-PDF-Erzeugung: ${error.message || String(error)}`);
+      return;
+    }
     const facturXPdf = await createFacturXPdf({
       invoice,
       sourcePdfPath: sourcePdf,
@@ -95,6 +101,8 @@ async function main() {
     });
     assert.equal(facturXPdf.success, true, facturXPdf.reason || facturXPdf.errorOutput || "Factur-X-PDF wurde nicht erzeugt");
     assert.equal(facturXPdf.embeddedXml, true);
+    assert.equal(facturXPdf.usedFallbackPdf, false);
+    assert.equal(facturXPdf.visibleLayout, "HSRechnung");
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }

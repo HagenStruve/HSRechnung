@@ -41,13 +41,15 @@ async function main() {
     return;
   }
 
-  const embedded = await hasEmbeddedFacturXXml(inputPath);
-  const inspection = await inspectFacturXPdf(inputPath);
+  const embedded = await hasEmbeddedFacturXXml(inputPath, { baseDir: ROOT_DIR });
+  const inspection = await inspectFacturXPdf(inputPath, { baseDir: ROOT_DIR });
   console.log(`Datei: ${path.relative(ROOT_DIR, inputPath) || inputPath}`);
   console.log(`factur-x.xml eingebettet: ${embedded ? "ja" : "nein"}`);
   console.log(`PDF/A-Version: ${inspection.pdfaVersion || "nicht erkannt"}`);
   console.log(`Seitenanzahl: ${inspection.pageCount}`);
   console.log(`Attachments: ${inspection.embeddedFileNames.join(", ") || "keine"}`);
+  console.log(`Sichtbares HSRechnung-Layout: ${inspection.hasHsrechnungLayout ? "ja" : "nein"}`);
+  console.log(`Technische Mustang-Datenseite sichtbar: ${inspection.hasMustangDataPage ? "ja" : "nein"}`);
 
   const availability = await getMustangAvailability(ROOT_DIR);
   if (!availability.available) {

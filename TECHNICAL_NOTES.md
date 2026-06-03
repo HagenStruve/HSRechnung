@@ -10,6 +10,7 @@ data/pdfs/Rechnung_RE-xxxxx_Kunde_Datum.pdf
 ```
 
 - Diese finale PDF enthaelt `factur-x.xml` als eingebettete Datei.
+- Die sichtbare PDF-Seite nutzt das HSRechnung-Layout der bestehenden Vorschau. Die technische Mustang-Seite `Daten der E-Rechnung` wird nicht als Nutzerrechnung verwendet.
 - Die App meldet den Export nur als erfolgreich, wenn Mustang-Validierung bestanden wurde.
 - XML und Browser-Quell-PDF werden temporaer erzeugt und nach erfolgreicher Erstellung geloescht.
 - Der vorherige BR-CO-26-Fehler ist behoben: `SellerTradeParty/ram:ID` wird aus USt-IdNr. oder Steuernummer gesetzt. Zusaetzlich werden USt-IdNr. (`schemeID="VA"`) und Steuernummer (`schemeID="FC"`) als TaxRegistration ausgegeben, wenn vorhanden.
@@ -22,8 +23,10 @@ data/pdfs/Rechnung_RE-xxxxx_Kunde_Datum.pdf
   - erzeugt CrossIndustryInvoice-XML fuer EN16931
 - `lib/facturx-pdf.cjs`
   - findet Mustang CLI ueber `MUSTANG_CLI_JAR`, `MUSTANG_JAR` oder `tools/Mustang-CLI-*.jar`
-  - erzeugt/kombiniert PDF und XML per Mustang
-  - prueft, ob `factur-x.xml` eingebettet ist
+  - kompiliert bei Bedarf den lokalen PDFBox-Adapter `tools/facturx/FacturXPdfBoxEmbedder.java`
+  - bettet `factur-x.xml` in die vorhandene HSRechnung-PDF ein
+  - setzt PDF/A-3B- und Factur-X-XMP-Metadaten
+  - prueft strukturell, ob `factur-x.xml` eingebettet ist
   - startet Mustang-Validierung
 - `scripts/e-invoice-validate.cjs`
   - prueft eine Factur-X-PDF auf eingebettete `factur-x.xml`
@@ -76,14 +79,20 @@ MUSTANG_CLI_JAR=C:\pfad\zu\Mustang-CLI-2.23.1.jar
 
 JAR-Dateien unter `tools/` sind per `.gitignore` ausgeschlossen.
 
+Der PDFBox-Adapter wird aus Quellcode kompiliert. Deshalb muss neben `java` auch `javac` im PATH liegen:
+
+```bash
+javac -version
+```
+
 ## Erzeugung
 
 Beim Button `PDF lokal speichern` passiert serverseitig:
 
 1. Bestehende Browser-PDF temporaer im HSRechnung-Layout erzeugen.
 2. Factur-X/CII-XML temporaer erzeugen.
-3. Mit Mustang versuchen, die temporaere HSRechnung-PDF mit `factur-x.xml` zu kombinieren.
-4. Wenn die vorhandene Browser-PDF nicht als PDF/A-Quelle geeignet ist, erzeugt Mustang eine PDF/A-3u-Ausgabe aus XML und kombiniert diese.
+3. Der lokale PDFBox-Adapter bettet `factur-x.xml` in genau diese HSRechnung-PDF ein.
+4. Der Adapter setzt PDF/A-3B- und Factur-X-XMP-Metadaten.
 5. Mustang validiert die finale PDF.
 6. Nur die validierte finale PDF wird in `data/pdfs/` unter dem normalen Rechnungsnamen gespeichert.
 
@@ -91,9 +100,9 @@ Wenn die finale PDF nicht validiert werden kann, gilt der Export als fehlgeschla
 
 Aktueller Layout-Stand:
 
-- Wenn Mustang die bestehende HSRechnung-PDF direkt als PDF/A-kompatible Quelle akzeptiert, bleibt das HSRechnung-Layout der sichtbare PDF-Teil.
-- Wenn Mustang die bestehende Browser-PDF nicht kombinieren kann, wird die finale validierte Factur-X-PDF mit Mustang-Layout erzeugt.
-- In der aktuellen lokalen Beispielvalidierung wurde das Mustang-Layout verwendet. Grund: die Browser-PDF ist keine zuverlaessige PDF/A-Quelle fuer Mustang `combine`. Damit der Nutzer trotzdem genau eine valide Datei bekommt, wird das Mustang-Layout als finale Nutzer-PDF unter dem normalen Rechnungsnamen gespeichert.
+- Das HSRechnung-Layout bleibt der sichtbare PDF-Teil.
+- Die Mustang-Darstellung `Daten der E-Rechnung` wird nicht als finale Nutzerdatei erzeugt.
+- Wenn die HSRechnung-Traeger-PDF nicht erfolgreich eingebettet und validiert werden kann, schlaegt der Export fehl statt auf ein anderes sichtbares Layout umzuschalten.
 
 ## Pruefen
 
@@ -120,6 +129,8 @@ Das Script gibt aus:
 - ob `factur-x.xml` eingebettet ist
 - ob Mustang-Validierung verfuegbar ist
 - ob Mustang die PDF als `valid` bewertet
+- ob das HSRechnung-Layout sichtbar ist
+- ob eine technische Mustang-Datenseite sichtbar ist
 
 Wenn Mustang fehlt, wird die Mustang-Validierung klar als uebersprungen gemeldet. Dann darf die Datei nicht als validierte E-Rechnung behauptet werden.
 
@@ -139,12 +150,14 @@ Ergebnis des Validierungsscripts fuer die Beispielrechnung:
 
 ```text
 factur-x.xml eingebettet: ja
-PDF/A-Version: PDF/A-3U
-Seitenanzahl: 2
+PDF/A-Version: PDF/A-3B
+Seitenanzahl: 1
 Attachments: factur-x.xml
+Sichtbares HSRechnung-Layout: ja
+Technische Mustang-Datenseite sichtbar: nein
 Mustang-Validierung: valid
 Mustang-Fehleranzahl: 0
-Profil: urn:cen.eu:en16931:2017
+Profil: EN 16931
 ```
 
 ## Steuerlogik und Grenzen
@@ -162,7 +175,7 @@ Aktuelle Grenze:
 
 - Die App nutzt weiterhin einen globalen Steuersatz pro Rechnung. Das XML schreibt den Satz je Position aus. Fuer gemischte Rechnungen mit mehreren Steuersaetzen sollte das Datenmodell spaeter um Positions-Steuerarten erweitert werden.
 - Steuerfreie Sonderfaelle koennen je nach Geschaeftsfall spezifischere VATEX-Codes benoetigen.
-- Wenn die vorhandene Browser-PDF nicht PDF/A-tauglich kombinierbar ist, verwendet der Adapter eine von Mustang erzeugte PDF/A-3u-Visualisierung als finale Nutzer-PDF.
+- Die finale Hybrid-PDF wird als PDF/A-3B erzeugt. PDF/A-3U wird nicht erzwungen, weil das sichtbare HSRechnung-Layout aus Browser/PDFBox nicht als vollstaendig getaggtes PDF/UA-Dokument neu aufgebaut wird.
 
 ## Pflichtfelder fuer valide E-Rechnungen
 
