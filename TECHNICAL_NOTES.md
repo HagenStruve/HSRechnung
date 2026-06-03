@@ -2,16 +2,16 @@
 
 ## Aktueller Stand
 
-- Die bestehende PDF-Erzeugung bleibt erhalten: `server.cjs` erzeugt weiter die bisherige PDF in `data/pdfs/`.
-- Zusaetzlich erzeugt die App eine Factur-X/ZUGFeRD-XML-Datei in `data/e-invoices/`.
-- Wenn Mustang CLI lokal verfuegbar ist, erzeugt die App eine finale Hybrid-PDF:
+- `server.cjs` erzeugt die fertige Nutzerdatei direkt als valide Factur-X/ZUGFeRD-Hybrid-PDF.
+- Die finale Datei liegt unter dem normalen Rechnungsnamen:
 
 ```text
-data/e-invoices/Rechnung_RE-xxxxx_factur-x.pdf
+data/pdfs/Rechnung_RE-xxxxx_Kunde_Datum.pdf
 ```
 
 - Diese finale PDF enthaelt `factur-x.xml` als eingebettete Datei.
-- Die App meldet die finale Factur-X-PDF nur als erfolgreich, wenn Mustang-Validierung bestanden wurde.
+- Die App meldet den Export nur als erfolgreich, wenn Mustang-Validierung bestanden wurde.
+- XML und Browser-Quell-PDF werden temporaer erzeugt und nach erfolgreicher Erstellung geloescht.
 - Der vorherige BR-CO-26-Fehler ist behoben: `SellerTradeParty/ram:ID` wird aus USt-IdNr. oder Steuernummer gesetzt. Zusaetzlich werden USt-IdNr. (`schemeID="VA"`) und Steuernummer (`schemeID="FC"`) als TaxRegistration ausgegeben, wenn vorhanden.
 
 ## Architektur
@@ -38,15 +38,15 @@ Die UI bleibt unveraendert bis auf das bereits vorhandene kleine Feld `Steuerart
 Fuer Nutzer und spaeter fuer MaschinenLog ist nur diese finale Datei relevant:
 
 ```text
-data/e-invoices/Rechnung_<Rechnungsnummer>_factur-x.pdf
+data/pdfs/Rechnung_<Rechnungsnummer>_<Kunde>_<Datum>.pdf
 ```
 
 Technische Zwischenprodukte:
 
-- `data/pdfs/Rechnung_...pdf`: bisherige normale PDF im HSRechnung-Layout
-- `data/e-invoices/Rechnung_...xml`: erzeugtes CII/XML vor der Einbettung
+- Browser-Quell-PDF im HSRechnung-Layout: temporaer im System-Temp-Ordner
+- CII/XML vor der Einbettung: temporaer im System-Temp-Ordner
 
-Diese Zwischenprodukte koennen fuer Diagnose und Support nuetzlich sein, sind aber nicht die finale E-Rechnung.
+Diese Zwischenprodukte werden im normalen Exportfluss nach erfolgreicher Erstellung geloescht. Im Nutzerordner `data/pdfs/` soll nur die fertige E-Rechnungs-PDF sichtbar sein.
 
 ## Lokale Einrichtung
 
@@ -80,19 +80,20 @@ JAR-Dateien unter `tools/` sind per `.gitignore` ausgeschlossen.
 
 Beim Button `PDF lokal speichern` passiert serverseitig:
 
-1. Bestehende Browser-PDF nach `data/pdfs/` schreiben.
-2. Factur-X/CII-XML nach `data/e-invoices/` schreiben.
-3. Mit Mustang versuchen, die vorhandene PDF mit `factur-x.xml` zu kombinieren.
+1. Bestehende Browser-PDF temporaer im HSRechnung-Layout erzeugen.
+2. Factur-X/CII-XML temporaer erzeugen.
+3. Mit Mustang versuchen, die temporaere HSRechnung-PDF mit `factur-x.xml` zu kombinieren.
 4. Wenn die vorhandene Browser-PDF nicht als PDF/A-Quelle geeignet ist, erzeugt Mustang eine PDF/A-3u-Ausgabe aus XML und kombiniert diese.
-5. Mustang validiert die finale `_factur-x.pdf`.
+5. Mustang validiert die finale PDF.
+6. Nur die validierte finale PDF wird in `data/pdfs/` unter dem normalen Rechnungsnamen gespeichert.
 
-Der originale PDF-Export bleibt dadurch erhalten. Die finale E-Rechnung liegt separat in `data/e-invoices/`.
+Wenn die finale PDF nicht validiert werden kann, gilt der Export als fehlgeschlagen.
 
 Aktueller Layout-Stand:
 
 - Wenn Mustang die bestehende HSRechnung-PDF direkt als PDF/A-kompatible Quelle akzeptiert, bleibt das HSRechnung-Layout der sichtbare PDF-Teil.
 - Wenn Mustang die bestehende Browser-PDF nicht kombinieren kann, wird die finale validierte Factur-X-PDF mit Mustang-Layout erzeugt.
-- In der aktuellen lokalen Beispielvalidierung wurde das Mustang-Layout verwendet. Grund: die Browser-PDF ist keine zuverlaessige PDF/A-Quelle fuer Mustang `combine`. Die normale HSRechnung-PDF bleibt separat erhalten.
+- In der aktuellen lokalen Beispielvalidierung wurde das Mustang-Layout verwendet. Grund: die Browser-PDF ist keine zuverlaessige PDF/A-Quelle fuer Mustang `combine`. Damit der Nutzer trotzdem genau eine valide Datei bekommt, wird das Mustang-Layout als finale Nutzer-PDF unter dem normalen Rechnungsnamen gespeichert.
 
 ## Pruefen
 
@@ -111,7 +112,7 @@ npm run validate:e-invoice
 Bestimmte Datei pruefen:
 
 ```bash
-node scripts/e-invoice-validate.cjs data/e-invoices/Rechnung_RE-2026-SAMPLE_factur-x.pdf
+node scripts/e-invoice-validate.cjs data/pdfs/Rechnung_RE-2026-SAMPLE_Max-Mustermann-GmbH_2026-06-02.pdf
 ```
 
 Das Script gibt aus:
@@ -161,7 +162,7 @@ Aktuelle Grenze:
 
 - Die App nutzt weiterhin einen globalen Steuersatz pro Rechnung. Das XML schreibt den Satz je Position aus. Fuer gemischte Rechnungen mit mehreren Steuersaetzen sollte das Datenmodell spaeter um Positions-Steuerarten erweitert werden.
 - Steuerfreie Sonderfaelle koennen je nach Geschaeftsfall spezifischere VATEX-Codes benoetigen.
-- Wenn die vorhandene Browser-PDF nicht PDF/A-tauglich kombinierbar ist, verwendet der Adapter eine von Mustang erzeugte PDF/A-3u-Visualisierung als finale Factur-X-PDF. Die bisherige PDF bleibt unveraendert separat erhalten.
+- Wenn die vorhandene Browser-PDF nicht PDF/A-tauglich kombinierbar ist, verwendet der Adapter eine von Mustang erzeugte PDF/A-3u-Visualisierung als finale Nutzer-PDF.
 
 ## Pflichtfelder fuer valide E-Rechnungen
 

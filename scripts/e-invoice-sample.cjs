@@ -4,7 +4,7 @@ const { createEInvoiceXmlFile } = require("../lib/e-invoice.cjs");
 const { createFacturXPdf } = require("../lib/facturx-pdf.cjs");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
-const OUTPUT_DIR = path.join(ROOT_DIR, "data", "e-invoices");
+const OUTPUT_DIR = path.join(ROOT_DIR, "data", "pdfs");
 
 const sampleInvoice = {
   companyName: "Hof Struve Lohnunternehmen",
@@ -40,22 +40,26 @@ const sampleInvoice = {
 
 async function main() {
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  const xml = await createEInvoiceXmlFile(sampleInvoice, OUTPUT_DIR);
+  const tempDir = await fs.mkdtemp(path.join(require("node:os").tmpdir(), "e-invoice-sample-"));
+
+  const xml = await createEInvoiceXmlFile(sampleInvoice, tempDir);
   if (!xml.success) {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     console.log(`Beispiel-XML konnte nicht erzeugt werden: ${xml.missingFields.join(", ")}`);
     process.exitCode = 1;
     return;
   }
 
-  const sourcePdfPath = path.join(OUTPUT_DIR, "sample-source.pdf");
-  await fs.writeFile(sourcePdfPath, "%PDF-1.7\n%%EOF", "latin1");
-
   try {
+    const sourcePdfPath = path.join(tempDir, "sample-source.pdf");
+    const outputFilePath = path.join(OUTPUT_DIR, "Rechnung_RE-2026-SAMPLE_Max-Mustermann-GmbH_2026-06-02.pdf");
+    await fs.writeFile(sourcePdfPath, "%PDF-1.7\n%%EOF", "latin1");
+
     const pdf = await createFacturXPdf({
       invoice: sampleInvoice,
       sourcePdfPath,
       xmlPath: xml.filePath,
-      outputDir: OUTPUT_DIR,
+      outputFilePath,
       baseDir: ROOT_DIR,
     });
 
@@ -68,7 +72,7 @@ async function main() {
 
     console.log(`Beispiel-Factur-X-PDF: ${path.relative(ROOT_DIR, pdf.filePath)}`);
   } finally {
-    await fs.rm(sourcePdfPath, { force: true }).catch(() => {});
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 

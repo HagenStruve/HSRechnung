@@ -60,14 +60,13 @@ IndexedDB im Browser bleibt als Fallback und als Migrationsquelle fuer alte loka
 
 ## E-Rechnung
 
-Beim lokalen Speichern einer PDF wird zusaetzlich eine Factur-X/ZUGFeRD-XML-Datei erzeugt. Wenn Mustang CLI lokal verfuegbar ist, erzeugt die App daraus eine finale Hybrid-PDF mit eingebetteter `factur-x.xml`:
+Beim lokalen Speichern einer PDF erzeugt die App die fertige Rechnung direkt als valide Factur-X/ZUGFeRD-Hybrid-PDF mit eingebetteter `factur-x.xml`:
 
 ```text
-data/e-invoices/
-data/e-invoices/Rechnung_RE-xxxxx_factur-x.pdf
+data/pdfs/Rechnung_RE-xxxxx_Kunde_Datum.pdf
 ```
 
-Die bisherige PDF in `data/pdfs/` bleibt erhalten. Die finale E-Rechnungs-PDF wird nur als erfolgreich gemeldet, wenn Mustang sie erzeugt und validiert hat. Fuer die Weitergabe an Kunden oder spaeter an MaschinenLog ist die finale Datei `data/e-invoices/Rechnung_<Nummer>_factur-x.pdf` relevant.
+Diese Datei ist die Hauptdatei fuer Nutzer, Kunden und spaeter MaschinenLog. Sie wird nur als erfolgreich gemeldet, wenn Mustang sie erzeugt und validiert hat. Technische XML- und Quell-PDF-Zwischenprodukte werden temporaer erzeugt und nach erfolgreicher Erstellung geloescht.
 
 Lokale Voraussetzung:
 

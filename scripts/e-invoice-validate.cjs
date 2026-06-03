@@ -8,14 +8,14 @@ const {
 } = require("../lib/facturx-pdf.cjs");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
-const DEFAULT_DIR = path.join(ROOT_DIR, "data", "e-invoices");
+const DEFAULT_DIR = path.join(ROOT_DIR, "data", "pdfs");
 
 async function findLatestFacturXPdf() {
   const files = await fs.readdir(DEFAULT_DIR).catch(() => []);
   const entries = [];
 
   for (const fileName of files) {
-    if (!/_factur-x(?:_\d+)?\.pdf$/iu.test(fileName)) continue;
+    if (!/^Rechnung_.*\.pdf$/iu.test(fileName)) continue;
     const filePath = path.join(DEFAULT_DIR, fileName);
     const stat = await fs.stat(filePath).catch(() => null);
     if (stat?.isFile()) entries.push({ filePath, mtimeMs: stat.mtimeMs });

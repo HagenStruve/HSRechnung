@@ -434,12 +434,22 @@ function sanitizeFilePart(value, fallback) {
   return cleaned || fallback;
 }
 
-async function uniquePdfPath(invoice) {
-  await ensurePdfDir();
+function getInvoicePdfName(invoice) {
   const invoiceNumber = sanitizeFilePart(invoice.invoiceNumber, "Ohne-Nummer");
   const customerName = sanitizeFilePart(invoice.customerName, "Ohne-Kunde");
   const invoiceDate = sanitizeFilePart(invoice.invoiceDate, new Date().toISOString().slice(0, 10));
-  const baseName = `Rechnung_${invoiceNumber}_${customerName}_${invoiceDate}`;
+  return `Rechnung_${invoiceNumber}_${customerName}_${invoiceDate}.pdf`;
+}
+
+async function finalPdfPath(invoice) {
+  await ensurePdfDir();
+  const fileName = getInvoicePdfName(invoice);
+  return { fileName, filePath: path.join(PDF_DIR, fileName) };
+}
+
+async function uniquePdfPath(invoice) {
+  await ensurePdfDir();
+  const baseName = path.basename(getInvoicePdfName(invoice), ".pdf");
 
   for (let index = 1; index < 1000; index += 1) {
     const suffix = index === 1 ? "" : `_${index}`;
@@ -546,6 +556,78 @@ async function createInvoicePdf(invoice) {
   };
 }
 
+async function createFinalInvoicePdf(invoice) {
+  if (!invoice || typeof invoice !== "object") throw new Error("Keine Rechnung uebergeben.");
+  const browserPath = await findBrowserExecutable();
+  const totals = calculateInvoiceTotals(invoice);
+  const html = await buildInvoiceHtml(invoice, totals);
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "invoice-pdf-"));
+  const htmlPath = path.join(tempDir, "invoice.html");
+  const profileDir = path.join(tempDir, "profile");
+  const sourcePdfPath = path.join(tempDir, "hsrechnung-source.pdf");
+  const xmlDir = path.join(tempDir, "xml");
+  const { fileName, filePath } = await finalPdfPath(invoice);
+
+  await fs.writeFile(htmlPath, html, "utf8");
+  await fs.mkdir(profileDir, { recursive: true });
+
+  try {
+    await execFileAsync(
+      browserPath,
+      [
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        `--user-data-dir=${profileDir}`,
+        `--print-to-pdf=${sourcePdfPath}`,
+        "--print-to-pdf-no-header",
+        pathToFileURL(htmlPath).href,
+      ],
+      { timeout: 60000, windowsHide: true }
+    );
+
+    const stat = await fs.stat(sourcePdfPath);
+    if (!stat.size) throw new Error("PDF-Datei wurde nicht erstellt.");
+
+    const eInvoice = await createEInvoiceXmlFile(invoice, xmlDir);
+    const facturXPdf = eInvoice.success
+      ? await createFacturXPdf({
+          invoice,
+          sourcePdfPath,
+          xmlPath: eInvoice.filePath,
+          outputFilePath: filePath,
+          baseDir: __dirname,
+        })
+      : null;
+
+    if (!facturXPdf?.success) {
+      const missingFields = Array.isArray(eInvoice.missingFields) && eInvoice.missingFields.length
+        ? ` Fehlende Pflichtfelder: ${eInvoice.missingFields.join(", ")}`
+        : "";
+      throw new Error(`${facturXPdf?.reason || "Factur-X-PDF konnte nicht validiert erzeugt werden."}${missingFields}`.trim());
+    }
+
+    return {
+      success: true,
+      filePath: path.relative(__dirname, filePath).replaceAll("\\", "/"),
+      fileName,
+      eInvoice: {
+        success: true,
+        embedded: true,
+        fileName: "factur-x.xml",
+        filePath: null,
+      },
+      facturXPdf: {
+        ...facturXPdf,
+        filePath: path.relative(__dirname, facturXPdf.filePath).replaceAll("\\", "/"),
+      },
+    };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 function findInvoiceInState(state, invoiceId) {
   if (invoiceId === "current" && state?.invoice) return state.invoice;
   const entry = Array.isArray(state?.invoices) ? state.invoices.find((item) => item.id === invoiceId || item.invoice?.id === invoiceId) : null;
@@ -593,7 +675,7 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      sendJson(response, 200, await createInvoicePdf(invoice));
+      sendJson(response, 200, await createFinalInvoicePdf(invoice));
       return;
     }
 

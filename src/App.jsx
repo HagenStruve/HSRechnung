@@ -1786,7 +1786,7 @@ export default function HSRechnung() {
 
       setLastPdfPath(result.filePath);
       if (result.facturXPdf?.success) {
-        showSaveMessage(`PDF gespeichert: ${result.filePath} | Factur-X-PDF: ${result.facturXPdf.filePath}`);
+        showSaveMessage(`E-Rechnung gespeichert: ${result.filePath}`);
       } else if (result.facturXPdf?.skipped) {
         showSaveMessage(`PDF und XML gespeichert. Factur-X-PDF fehlt: ${result.facturXPdf.reason}`);
       } else if (result.facturXPdf?.reason) {
