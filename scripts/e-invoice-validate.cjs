@@ -3,6 +3,7 @@ const path = require("node:path");
 const {
   getMustangAvailability,
   hasEmbeddedFacturXXml,
+  inspectFacturXPdf,
   validateWithMustang,
 } = require("../lib/facturx-pdf.cjs");
 
@@ -41,8 +42,12 @@ async function main() {
   }
 
   const embedded = await hasEmbeddedFacturXXml(inputPath);
+  const inspection = await inspectFacturXPdf(inputPath);
   console.log(`Datei: ${path.relative(ROOT_DIR, inputPath) || inputPath}`);
   console.log(`factur-x.xml eingebettet: ${embedded ? "ja" : "nein"}`);
+  console.log(`PDF/A-Version: ${inspection.pdfaVersion || "nicht erkannt"}`);
+  console.log(`Seitenanzahl: ${inspection.pageCount}`);
+  console.log(`Attachments: ${inspection.embeddedFileNames.join(", ") || "keine"}`);
 
   const availability = await getMustangAvailability(ROOT_DIR);
   if (!availability.available) {
@@ -53,8 +58,10 @@ async function main() {
 
   const validation = await validateWithMustang(inputPath, { baseDir: ROOT_DIR });
   console.log(`Mustang-Validierung: ${validation.valid ? "valid" : "invalid"}`);
+  console.log(`Mustang-Fehleranzahl: ${validation.summary?.errorCount ?? "unbekannt"}`);
+  console.log(`Profil: ${inspection.profile || "nicht erkannt"}`);
   if (!validation.valid && validation.output) {
-    const summary = validation.output.match(/<summary status="[^"]+"\/>/u)?.[0] || validation.reason;
+    const summary = validation.summary?.finalStatus ? `<summary status="${validation.summary.finalStatus}"/>` : validation.reason;
     console.log(`Mustang-Ergebnis: ${summary}`);
   }
 

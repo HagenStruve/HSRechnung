@@ -67,7 +67,7 @@ data/e-invoices/
 data/e-invoices/Rechnung_RE-xxxxx_factur-x.pdf
 ```
 
-Die bisherige PDF in `data/pdfs/` bleibt erhalten. Die finale E-Rechnungs-PDF wird nur als erfolgreich gemeldet, wenn Mustang sie erzeugt und validiert hat.
+Die bisherige PDF in `data/pdfs/` bleibt erhalten. Die finale E-Rechnungs-PDF wird nur als erfolgreich gemeldet, wenn Mustang sie erzeugt und validiert hat. Fuer die Weitergabe an Kunden oder spaeter an MaschinenLog ist die finale Datei `data/e-invoices/Rechnung_<Nummer>_factur-x.pdf` relevant.
 
 Lokale Voraussetzung:
 
@@ -88,6 +88,14 @@ Beispielrechnung erzeugen und pruefen:
 npm run sample:e-invoice
 npm run validate:e-invoice
 ```
+
+Fuer valide EN16931-Rechnungen muessen im Firmenprofil mindestens diese Daten gepflegt sein:
+
+- Firmenname
+- vollstaendige Adresse
+- E-Mail
+- IBAN
+- Steuernummer oder USt-IdNr. als Verkaeuferkennung
 
 Details zu Installation, Validierung und offenen Grenzen stehen in `TECHNICAL_NOTES.md`.
 
