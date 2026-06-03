@@ -49,6 +49,7 @@ async function main() {
   console.log(`Seitenanzahl: ${inspection.pageCount}`);
   console.log(`Attachments: ${inspection.embeddedFileNames.join(", ") || "keine"}`);
   console.log(`Sichtbares HSRechnung-Layout: ${inspection.hasHsrechnungLayout ? "ja" : "nein"}`);
+  console.log(`Sample-Layout sichtbar: ${inspection.hasSampleLayout ? "ja" : "nein"}`);
   console.log(`Technische Mustang-Datenseite sichtbar: ${inspection.hasMustangDataPage ? "ja" : "nein"}`);
 
   const availability = await getMustangAvailability(ROOT_DIR);

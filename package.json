@@ -9,7 +9,6 @@
     "vite": "vite",
     "api": "node server.cjs",
     "test": "node scripts/e-invoice-test.cjs",
-    "sample:e-invoice": "node scripts/e-invoice-sample.cjs",
     "validate:e-invoice": "node scripts/e-invoice-validate.cjs",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --open"

@@ -11,7 +11,6 @@ const PORT = Number(process.env.INVOICE_API_PORT || 5174);
 const DATA_DIR = path.join(__dirname, "data");
 const LOGO_DIR = path.join(DATA_DIR, "logos");
 const PDF_DIR = path.join(DATA_DIR, "pdfs");
-const E_INVOICE_DIR = path.join(DATA_DIR, "e-invoices");
 const DATA_FILE = path.join(DATA_DIR, "invoices.json");
 const APP_ICON_FILE = path.join(__dirname, "public", "brand", "hsrechnung-icon.svg");
 const BACKUP_FILE = path.join(DATA_DIR, "invoices.json.bak");
@@ -51,11 +50,6 @@ async function ensureLogoDir() {
 async function ensurePdfDir() {
   await ensureDataDir();
   await fs.mkdir(PDF_DIR, { recursive: true });
-}
-
-async function ensureEInvoiceDir() {
-  await ensureDataDir();
-  await fs.mkdir(E_INVOICE_DIR, { recursive: true });
 }
 
 async function readState() {
@@ -515,57 +509,6 @@ async function printHtmlToPdf(browserPath, htmlPath, pdfPath, profileDir) {
     const stat = await fs.stat(pdfPath).catch(() => null);
     if (!stat?.size) throw error;
   }
-}
-
-async function createInvoicePdf(invoice) {
-  if (!invoice || typeof invoice !== "object") throw new Error("Keine Rechnung übergeben.");
-  const browserPath = await findBrowserExecutable();
-  const totals = calculateInvoiceTotals(invoice);
-  const html = await buildInvoiceHtml(invoice, totals);
-  const { fileName, filePath } = await uniquePdfPath(invoice);
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "invoice-pdf-"));
-  const htmlPath = path.join(tempDir, "invoice.html");
-  const profileDir = path.join(tempDir, "profile");
-
-  await fs.writeFile(htmlPath, html, "utf8");
-  await fs.mkdir(profileDir, { recursive: true });
-
-  try {
-    await printHtmlToPdf(browserPath, htmlPath, filePath, profileDir);
-  } finally {
-    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
-  }
-
-  const stat = await fs.stat(filePath);
-  if (!stat.size) throw new Error("PDF-Datei wurde nicht erstellt.");
-
-  await ensureEInvoiceDir();
-  const eInvoice = await createEInvoiceXmlFile(invoice, E_INVOICE_DIR);
-  const facturXPdf = eInvoice.success
-    ? await createFacturXPdf({
-        invoice,
-        sourcePdfPath: filePath,
-        xmlPath: eInvoice.filePath,
-        outputDir: E_INVOICE_DIR,
-        baseDir: __dirname,
-      })
-    : null;
-
-  return {
-    success: true,
-    filePath: path.relative(__dirname, filePath).replaceAll("\\", "/"),
-    fileName,
-    eInvoice: {
-      ...eInvoice,
-      filePath: eInvoice.filePath ? path.relative(__dirname, eInvoice.filePath).replaceAll("\\", "/") : null,
-    },
-    facturXPdf: facturXPdf
-      ? {
-          ...facturXPdf,
-          filePath: facturXPdf.filePath ? path.relative(__dirname, facturXPdf.filePath).replaceAll("\\", "/") : null,
-        }
-      : null,
-  };
 }
 
 async function createFinalInvoicePdf(invoice) {

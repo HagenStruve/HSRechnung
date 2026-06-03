@@ -8,11 +8,11 @@ const {
   validateEInvoiceData,
 } = require("../lib/e-invoice.cjs");
 const {
-  createFacturXPdf,
   getMustangAvailability,
   hasEmbeddedFacturXXml,
+  inspectFacturXPdf,
+  validateWithMustang,
 } = require("../lib/facturx-pdf.cjs");
-const { createHsrechnungCarrierPdf } = require("./hsrechnung-carrier-pdf.cjs");
 
 function createSampleInvoice(overrides = {}) {
   return {
@@ -85,24 +85,22 @@ async function main() {
       return;
     }
 
-    const sourcePdf = path.join(tempDir, "source.pdf");
-    try {
-      await createHsrechnungCarrierPdf(invoice, sourcePdf, tempDir);
-    } catch (error) {
-      console.log(`SKIP Factur-X-PDF-Erzeugung: ${error.message || String(error)}`);
+    const pdfDir = path.resolve(__dirname, "..", "data", "pdfs");
+    const pdfFiles = await fs.readdir(pdfDir).catch(() => []);
+    const finalPdfName = pdfFiles.find((fileName) => /^Rechnung_.*\.pdf$/iu.test(fileName) && !/SAMPLE/iu.test(fileName));
+    if (!finalPdfName) {
+      console.log("SKIP finale PDF-Pruefung: keine vorhandene echte Nutzerrechnung in data/pdfs.");
       return;
     }
-    const facturXPdf = await createFacturXPdf({
-      invoice,
-      sourcePdfPath: sourcePdf,
-      xmlPath: result.filePath,
-      outputDir: tempDir,
-      baseDir: path.resolve(__dirname, ".."),
-    });
-    assert.equal(facturXPdf.success, true, facturXPdf.reason || facturXPdf.errorOutput || "Factur-X-PDF wurde nicht erzeugt");
-    assert.equal(facturXPdf.embeddedXml, true);
-    assert.equal(facturXPdf.usedFallbackPdf, false);
-    assert.equal(facturXPdf.visibleLayout, "HSRechnung");
+
+    const finalPdfPath = path.join(pdfDir, finalPdfName);
+    const inspection = await inspectFacturXPdf(finalPdfPath, { baseDir: path.resolve(__dirname, "..") });
+    assert.equal(inspection.hasFacturXXml, true, "Finale Nutzer-PDF muss factur-x.xml enthalten.");
+    assert.equal(inspection.hasMustangDataPage, false, "Finale Nutzer-PDF darf keine Mustang-Datenseite zeigen.");
+    assert.equal(inspection.hasHsrechnungLayout, true, "Finale Nutzer-PDF muss das HSRechnung-Layout enthalten.");
+
+    const mustang = await validateWithMustang(finalPdfPath, { baseDir: path.resolve(__dirname, "..") });
+    assert.equal(mustang.valid, true, mustang.reason || mustang.output || "Mustang-Validierung fehlgeschlagen.");
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }

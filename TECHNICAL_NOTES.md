@@ -31,9 +31,6 @@ data/pdfs/Rechnung_RE-xxxxx_Kunde_Datum.pdf
 - `scripts/e-invoice-validate.cjs`
   - prueft eine Factur-X-PDF auf eingebettete `factur-x.xml`
   - fuehrt Mustang-Validierung aus, wenn Mustang verfuegbar ist
-- `scripts/e-invoice-sample.cjs`
-  - erzeugt eine Beispielrechnung fuer lokale Tests
-
 Die UI bleibt unveraendert bis auf das bereits vorhandene kleine Feld `Steuerart` in den Firmendaten.
 
 ## Nutzerdatei und Zwischenprodukte
@@ -106,12 +103,6 @@ Aktueller Layout-Stand:
 
 ## Pruefen
 
-Beispielrechnung erzeugen:
-
-```bash
-npm run sample:e-invoice
-```
-
 Neueste Factur-X-PDF pruefen:
 
 ```bash
@@ -121,7 +112,7 @@ npm run validate:e-invoice
 Bestimmte Datei pruefen:
 
 ```bash
-node scripts/e-invoice-validate.cjs data/pdfs/Rechnung_RE-2026-SAMPLE_Max-Mustermann-GmbH_2026-06-02.pdf
+node scripts/e-invoice-validate.cjs data/pdfs/Rechnung_RE-2026006_tester_2026-06-01.pdf
 ```
 
 Das Script gibt aus:
@@ -130,6 +121,7 @@ Das Script gibt aus:
 - ob Mustang-Validierung verfuegbar ist
 - ob Mustang die PDF als `valid` bewertet
 - ob das HSRechnung-Layout sichtbar ist
+- ob ein Sample-Layout sichtbar ist
 - ob eine technische Mustang-Datenseite sichtbar ist
 
 Wenn Mustang fehlt, wird die Mustang-Validierung klar als uebersprungen gemeldet. Dann darf die Datei nicht als validierte E-Rechnung behauptet werden.
@@ -142,11 +134,10 @@ Ausgefuehrt:
 
 ```bash
 npm test
-npm run sample:e-invoice
 npm run validate:e-invoice
 ```
 
-Ergebnis des Validierungsscripts fuer die Beispielrechnung:
+Ergebnis des Validierungsscripts fuer eine echte Nutzerrechnung:
 
 ```text
 factur-x.xml eingebettet: ja
@@ -154,6 +145,7 @@ PDF/A-Version: PDF/A-3B
 Seitenanzahl: 1
 Attachments: factur-x.xml
 Sichtbares HSRechnung-Layout: ja
+Sample-Layout sichtbar: nein
 Technische Mustang-Datenseite sichtbar: nein
 Mustang-Validierung: valid
 Mustang-Fehleranzahl: 0

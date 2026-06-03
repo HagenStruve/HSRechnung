@@ -21,9 +21,6 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
@@ -33,8 +30,6 @@ import org.apache.pdfbox.pdmodel.common.PDMetadata;
 import org.apache.pdfbox.pdmodel.common.filespecification.PDComplexFileSpecification;
 import org.apache.pdfbox.pdmodel.common.filespecification.PDEmbeddedFile;
 import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDMarkInfo;
-import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.graphics.color.PDOutputIntent;
 import org.apache.pdfbox.text.PDFTextStripper;
 
@@ -45,11 +40,6 @@ public final class FacturXPdfBoxEmbedder {
   }
 
   public static void main(String[] args) throws Exception {
-    if (args.length == 2 && "--carrier".equals(args[0])) {
-      createCarrier(new File(args[1]));
-      return;
-    }
-
     if (args.length == 2 && "--inspect".equals(args[0])) {
       inspect(new File(args[1]));
       return;
@@ -57,7 +47,6 @@ public final class FacturXPdfBoxEmbedder {
 
     if (args.length != 3) {
       System.err.println("Usage: FacturXPdfBoxEmbedder <source.pdf> <factur-x.xml> <output.pdf>");
-      System.err.println("   or: FacturXPdfBoxEmbedder --carrier <output.pdf>");
       System.err.println("   or: FacturXPdfBoxEmbedder --inspect <input.pdf>");
       System.exit(2);
     }
@@ -121,50 +110,6 @@ public final class FacturXPdfBoxEmbedder {
     }
   }
 
-  private static void createCarrier(File outputPdf) throws IOException {
-    try (PDDocument document = new PDDocument()) {
-      document.setVersion(1.7f);
-      PDPage page = new PDPage(PDRectangle.A4);
-      document.addPage(page);
-      PDDocumentCatalog catalog = document.getDocumentCatalog();
-      catalog.setVersion("1.7");
-      catalog.setLanguage("de-DE");
-      addOutputIntentIfMissing(document, catalog);
-
-      PDFont font = PDType0Font.load(document, new File("C:\\Windows\\Fonts\\arial.ttf"));
-      try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-        content.setNonStrokingColor(0.09f, 0.13f, 0.2f);
-        content.addRect(50, 760, 495, 2);
-        content.fill();
-        writeText(content, font, 24, 50, 720, "HSRechnung");
-        writeText(content, font, 10, 50, 700, "Hof Struve Lohnunternehmen");
-        writeText(content, font, 10, 50, 686, "Dorfstrasse 1, 12345 Musterort");
-        writeText(content, font, 30, 50, 620, "Rechnung");
-        writeText(content, font, 11, 50, 580, "Rechnung an: Max Mustermann GmbH");
-        writeText(content, font, 11, 50, 564, "Hauptstrasse 10, 12345 Berlin");
-        writeText(content, font, 11, 350, 580, "Rechnungsnummer: RE-2026-SAMPLE");
-        writeText(content, font, 11, 350, 564, "Rechnungsdatum: 2026-06-02");
-        content.setStrokingColor(0.86f, 0.88f, 0.92f);
-        content.addRect(50, 485, 495, 55);
-        content.stroke();
-        writeText(content, font, 10, 62, 520, "Leistung");
-        writeText(content, font, 10, 250, 520, "Menge");
-        writeText(content, font, 10, 340, 520, "Einzelpreis");
-        writeText(content, font, 10, 450, 520, "Gesamt");
-        writeText(content, font, 10, 62, 498, "Baggerarbeiten");
-        writeText(content, font, 10, 250, 498, "2,00 h");
-        writeText(content, font, 10, 340, 498, "85,00 EUR");
-        writeText(content, font, 10, 450, 498, "170,00 EUR");
-        writeText(content, font, 12, 360, 430, "Netto: 170,00 EUR");
-        writeText(content, font, 12, 360, 410, "USt. 19%: 32,30 EUR");
-        writeText(content, font, 14, 360, 385, "Brutto: 202,30 EUR");
-      }
-
-      outputPdf.getParentFile().mkdirs();
-      document.save(outputPdf);
-    }
-  }
-
   private static void addOutputIntentIfMissing(PDDocument document, PDDocumentCatalog catalog) throws IOException {
     if (!catalog.getOutputIntents().isEmpty()) return;
     ICC_Profile profile = ICC_Profile.getInstance(ColorSpace.CS_sRGB);
@@ -202,6 +147,7 @@ public final class FacturXPdfBoxEmbedder {
       values.put("profile", firstMatch(xmp, "<fx:ConformanceLevel>([^<]+)</fx:ConformanceLevel>"));
       String text = new PDFTextStripper().getText(document);
       values.put("hasHsrechnungLayout", Boolean.toString(text.contains("HSRechnung") || text.contains("Hof Struve Lohnunternehmen")));
+      values.put("hasSampleLayout", Boolean.toString(text.contains("RE-2026-SAMPLE")));
       values.put("hasMustangDataPage", Boolean.toString(text.contains("Daten der E-Rechnung")));
 
       for (Map.Entry<String, String> entry : values.entrySet()) {
@@ -213,14 +159,6 @@ public final class FacturXPdfBoxEmbedder {
   private static String firstMatch(String text, String regex) {
     Matcher matcher = Pattern.compile(regex, Pattern.DOTALL).matcher(text);
     return matcher.find() ? matcher.group(1) : "";
-  }
-
-  private static void writeText(PDPageContentStream content, PDFont font, int size, float x, float y, String text) throws IOException {
-    content.beginText();
-    content.setFont(font, size);
-    content.newLineAtOffset(x, y);
-    content.showText(text);
-    content.endText();
   }
 
   private static String buildXmp() {

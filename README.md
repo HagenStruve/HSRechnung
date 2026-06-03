@@ -82,14 +82,13 @@ Alternativ kann der Pfad zur JAR per Umgebungsvariable gesetzt werden:
 MUSTANG_CLI_JAR=C:\pfad\zu\Mustang-CLI-2.23.1.jar
 ```
 
-Beispielrechnung erzeugen und pruefen:
+Finale Rechnung pruefen:
 
 ```bash
-npm run sample:e-invoice
 npm run validate:e-invoice
 ```
 
-Das Validierungsscript prueft die zuletzt erzeugte finale Rechnung in `data/pdfs/` und gibt aus, ob `factur-x.xml` eingebettet ist, welche PDF/A-3-Variante erkannt wurde, ob das HSRechnung-Layout sichtbar ist und ob Mustang 0 Fehler meldet.
+Das Validierungsscript prueft die zuletzt erzeugte finale Rechnung in `data/pdfs/` und gibt aus, ob `factur-x.xml` eingebettet ist, welche PDF/A-3-Variante erkannt wurde, ob das HSRechnung-Layout sichtbar ist, ob ein Sample-/Mustang-Layout sichtbar ist und ob Mustang 0 Fehler meldet. Eine Test- oder Sample-PDF wird dabei nicht erzeugt.
 
 Fuer valide EN16931-Rechnungen muessen im Firmenprofil mindestens diese Daten gepflegt sein:
 
